@@ -1,0 +1,62 @@
+HOSPITAL MANAGEMENT SYSTEM (EXO 1)
+
+CLASS STRUCTURE
+- User (Parent): id, name, password, email | login(), logout()
+- Patient (User): medicalHistory | postProblem(), makePayment()
+- Doctor (User): specialization, licenseNum | reviewProblem(), writePrescription()
+- Organizer (User): isAdmin | consultDoctor(), forwardPrescription(), manageDB()
+- HealthProblem: description, status (pending/resolved), timestamp
+- Prescription: details, dateIssued, referenceID
+- Payment: amount, date | process() -> (Subclasses: Cash, Check, CreditCard)
+
+RELATIONSHIPS
+- Patient (1), (0..*) HealthProblem (Post)
+- HealthProblem (1), (0..1) Prescription (Result)
+- Doctor (1), (0..*) Prescription (Issue)
+- Organizer (1), (0..*) Patient/Doctor (Coordinates)
+
+CONSULTATION SEQUENCE
+Patient -> Organizer: submitProblem(details)
+Organizer -> HealthProblem: createRecord()
+Organizer -> Doctor: requestConsultation(problem)
+Doctor -> Prescription: generate(details)
+Organizer -> Patient: sendPrescription(prescription)
+Patient -> Organizer: pay(amount, method)
+Organizer -> Doctor: forwardPayment(amount)
+
+ABCD RECORDS (EXO 2)
+
+1. USE CASE DIAGRAM ACTORS
+- Member (Regular/Royal)
+- Non-Member
+- Order Clerk
+- Collection Clerk
+
+2. PRIMARY USE CASES
+- Place Order <<include>> Verify Membership
+- Order Unavailable Items <<extend>> Place Order (Royal only)
+- Process Payment <<include>> Print Invoice
+- Send Application (For Non-Members)
+
+3. CLASS STRUCTURE
+- Member: memberID, status, discountRate | placeOrder()
+    - Subclasses: RegularMember, RoyalMember
+- Order: orderID, date, totalStatus | calculateTotal()
+- OrderLine: quantity, priceAtPurchase
+- Item: itemID, title, price, stockLevel
+    - Subclasses: CD, Tape
+- Payment: amount, method | validate()
+    - Subclasses: Cash, Check, BankDraft
+- Invoice/ShippingList: generatedDate | print()
+
+4. MULTIPLICITY
+- Member (1), (0..*) Order
+- Order (1), (1..*) OrderLine (Composition)
+- OrderLine (0..*), (1) Item
+- Order (1), (1) Invoice/ShippingList
+
+DESIGN REFLECTION
+- Multiple Doctors: Change HealthProblem-Doctor link to *..* multiplicity.
+- Reusable Prescriptions: Add 'refillCount' attribute to Prescription class.
+- Design Pattern: Strategy Pattern for Payments; Factory Pattern for creating Orders.
+- Data Integrity: Use transactional logic (commit/rollback) during the payment sequence.
