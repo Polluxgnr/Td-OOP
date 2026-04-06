@@ -1,0 +1,116 @@
+import json
+import re
+from abc import ABC, abstractmethod
+
+
+#ADAPTER PATTERN
+
+
+class ReportGeneratorInterface(ABC):
+    """Contract: any report generator must return JSON."""
+    @abstractmethod
+    def generate(self, data: dict) -> str:
+        pass
+
+class LegacyReportGenerator:
+    """Legacy system (CAN'T MODIFY) - Returns XML format."""
+    def generate_report(self, data: dict) -> str:
+        xml = "<report>\n"
+        for key, value in data.items():
+            xml += f"  <{key}>{value}</{key}>\n"
+        xml += "</report>"
+        return xml
+
+class LegacyReportAdapter(ReportGeneratorInterface):
+    """Adapter: Bridges XML (Legacy) -> JSON (Dashboard)."""
+    def __init__(self, legacy: LegacyReportGenerator):
+        self._legacy = legacy
+
+    def generate(self, data: dict) -> str:
+        xml = self._legacy.generate_report(data)
+        return self._xml_to_json(xml)
+
+    def _xml_to_json(self, xml: str) -> str:
+        """Internal conversion logic."""
+        result = {}
+        pattern = r"<(\w+)>(.*?)</\1>"
+        for key, value in re.findall(pattern, xml):
+            try:
+                result[key] = float(value) if "." in value else int(value)
+            except ValueError:
+                result[key] = value
+        return json.dumps(result)
+
+class AnalyticsDashboard:
+    """Client: Only accepts JSON strings."""
+    def display(self, json_data: str):
+        data = json.loads(json_data)
+        print("=== Analytics Dashboard ===")
+        for key, value in data.items():
+            print(f"  {key}: {value}")
+
+# DECORATOR PATTERN
+
+
+class OrderComponent(ABC):
+    """Interface for both the base order and decorators."""
+    @abstractmethod
+    def get_cost(self) -> float: pass
+    @abstractmethod
+    def get_description(self) -> str: pass
+
+class BaseOrder(OrderComponent):
+    """The core object being decorated."""
+    def __init__(self, base_price: float):
+        self._base_price = base_price
+    def get_cost(self) -> float: return self._base_price
+    def get_description(self) -> str: return f"Base order: {self._base_price}€"
+
+class OrderDecorator(OrderComponent):
+    """Abstract Decorator: Holds the wrapped reference."""
+    def __init__(self, order: OrderComponent):
+        self._order = order
+    def get_cost(self) -> float: return self._order.get_cost()
+    def get_description(self) -> str: return self._order.get_description()
+
+class ExpressShippingDecorator(OrderDecorator):
+    def get_cost(self) -> float: return self._order.get_cost() + 15.0
+    def get_description(self) -> str:
+        return self._order.get_description() + "\n  + Express shipping: +15.00€"
+
+class InsuranceDecorator(OrderDecorator):
+    def get_cost(self) -> float: return self._order.get_cost() * 1.05
+    def get_description(self) -> str:
+        cost = self._order.get_cost() * 0.05
+        return self._order.get_description() + f"\n  + Insurance (5%): +{cost:.2f}€"
+
+class DiscountDecorator(OrderDecorator):
+    def __init__(self, order: OrderComponent, percent: float):
+        super().__init__(order)
+        self._percent = percent
+    def get_cost(self) -> float:
+        return self._order.get_cost() * (1 - self._percent / 100)
+    def get_description(self) -> str:
+        amt = self._order.get_cost() * (self._percent / 100)
+        return self._order.get_description() + f"\n  - Discount ({self._percent}%): -{amt:.2f}€"
+
+
+# execution: 
+
+if __name__ == "__main__":
+    print("--- DEMO 1: ADAPTER PATTERN ---")
+    adapter = LegacyReportAdapter(LegacyReportGenerator())
+    dashboard = AnalyticsDashboard()
+    sales_data = {"total_sales": 150000, "orders": 1234}
+    dashboard.display(adapter.generate(sales_data))
+
+    print("\n" + "="*40 + "\n")
+
+    print("--- DEMO 2: DECORATOR PATTERN ---")
+    order = BaseOrder(100.00)
+    order = ExpressShippingDecorator(order)
+    order = InsuranceDecorator(order)
+    order = DiscountDecorator(order, percent=15)
+
+    print(order.get_description())
+    print(f"TOTAL: {order.get_cost():.2f}€")
